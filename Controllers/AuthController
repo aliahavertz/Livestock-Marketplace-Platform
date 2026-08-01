@@ -1,0 +1,23 @@
+<?php
+session_start();
+require_once "../config/db.php";
+require_once "../models/User.php";
+
+$user = new User($conn);
+
+if(isset($_POST['register'])) {
+    $user->register($_POST['name'], $_POST['email'], $_POST['password'], $_POST['role']);
+    header("Location: ../views/login.php");
+}
+
+if(isset($_POST['login'])) {
+    $login = $user->login($_POST['email'], $_POST['password']);
+    if($login) {
+        $_SESSION['user_id'] = $login['user_id'];
+        $_SESSION['role'] = $login['role'];
+        header("Location: ../views/" . $_SESSION['role'] . "_dashboard.php");
+    } else {
+        echo "Invalid credentials";
+    }
+}
+?>
