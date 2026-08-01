@@ -1,0 +1,41 @@
+<?php
+require_once "../config/db.php";
+require_once "../models/Payment.php";
+
+$apiKey = "YOUR_TOYYIBPAY_API_KEY";
+$categoryCode = "YOUR_CATEGORY_CODE"; // created in ToyyibPay dashboard
+
+$payment = new Payment($conn);
+
+if(isset($_POST['pay_now'])) {
+    $order_id = $_POST['order_id'];
+    $amount = $_POST['amount'];
+    $buyer_email = $_POST['email'];
+
+    $data = [
+        'userSecretKey' => $apiKey,
+        'categoryCode' => $categoryCode,
+        'billName' => 'Livestock Purchase',
+        'billDescription' => 'Payment for order #' . $order_id,
+        'billPriceSetting' => 1,
+        'billPayorInfo' => 1,
+        'billAmount' => $amount * 100,
+        'billReturnUrl' => 'http://localhost/livestock_marketplace/controllers/payment_success.php',
+        'billCallbackUrl' => 'http://localhost/livestock_marketplace/controllers/payment_callback.php',
+        'billTo' => $_POST['name'],
+        'billEmail' => $buyer_email
+    ];
+
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_POST, 1);
+    curl_setopt($curl, CURLOPT_URL, 'https://toyyibpay.com/index.php/api/createBill');
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+    $result = curl_exec($curl);
+    curl_close($curl);
+
+    $response = json_decode($result, true);
+    $billCode = $response[0]['BillCode'];
+    header("Location: https://toyyibpay.com/".$billCode);
+}
+?>
