@@ -1,0 +1,12 @@
+<?php
+require_once "../config/db.php";
+require_once "../models/Livestock.php";
+
+$livestock = new Livestock($conn);
+
+if(isset($_POST['add_livestock'])) {
+    $livestock->addLivestock($_POST['name'], $_POST['breed'], $_POST['age'], $_POST['gender'], $_POST['weight'],
+                             $_POST['price'], $_POST['health'], $_POST['image'], $_POST['farmer_id']);
+    header("Location: ../views/farmer_dashboard.php");
+}
+?>
