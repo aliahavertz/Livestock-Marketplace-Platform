@@ -1,0 +1,27 @@
+{
+    "cinzel": {
+        "bold": "cinzel_bold_c9c3879c158e0dafc0f2487c789a9af5"
+    },
+    "pt serif": {
+        "italic": "C:\\xampp\\htdocs\\LivestockMarketplace\\vendor\\dompdf\\dompdf\/lib\/fonts\/pt_serif_italic_f9b6598cf7d0419a014cfb138cca32d8",
+        "normal": "C:\\xampp\\htdocs\\LivestockMarketplace\\vendor\\dompdf\\dompdf\/lib\/fonts\/pt_serif_normal_b504b7d2db909ef4d76100e1ec28b578",
+        "bold": "pt_serif_bold_23708553f1de70cacb300fe34d5b01eb"
+    },
+    "font awesome 6 brands": {
+        "normal": "font_awesome_6_brands_normal_fe9f8889de14dac4e5423b59c7c9c4d7"
+    },
+    "font awesome 6 free": {
+        "normal": "C:\\xampp\\htdocs\\LivestockMarketplace\\vendor\\dompdf\\dompdf\/lib\/fonts\/font_awesome_6_free_normal_63ceaa3a26a25d15acc67a2a92a86505",
+        "900": "font_awesome_6_free_900_e28be8b0559d1fb8cc4e17872df29e2a"
+    },
+    "font awesome 5 brands": {
+        "normal": "font_awesome_5_brands_normal_fe9f8889de14dac4e5423b59c7c9c4d7"
+    },
+    "font awesome 5 free": {
+        "900": "C:\\xampp\\htdocs\\LivestockMarketplace\\vendor\\dompdf\\dompdf\/lib\/fonts\/font_awesome_5_free_900_e28be8b0559d1fb8cc4e17872df29e2a",
+        "normal": "font_awesome_5_free_normal_63ceaa3a26a25d15acc67a2a92a86505"
+    },
+    "fontawesome": {
+        "normal": "fontawesome_normal_06860fa9961d464ff5b77a2ec3345004"
+    }
+}
