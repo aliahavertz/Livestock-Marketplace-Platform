@@ -1,0 +1,823 @@
+<?php
+date_default_timezone_set('Asia/Kuala_Lumpur');
+session_start();
+
+if (!isset($_SESSION['farmer_id'])) {
+    header("Location: farmer_login.php");
+    exit();
+}
+
+include '../db_connect.php';
+
+$farmer_id = $_SESSION['farmer_id'];
+
+$stmt = $pdo->prepare("SELECT MAX(farmer_livestock_no) FROM livestock WHERE farmer_id = :fid");
+$stmt->execute([':fid' => $farmer_id]);
+$last_no = $stmt->fetchColumn();
+
+$new_display_id = ($last_no) ? $last_no + 1 : 1;
+
+$sql = "SELECT name, farm_name, email, phone_number, profile_image 
+        FROM farmer 
+        WHERE farmer_id = ?";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$farmer_id]);
+$farmer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$name = $farmer['farm_name']; 
+
+$stmtUnread = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND user_type = 'farmer' AND is_read = FALSE");
+$stmtUnread->execute(['uid' => $farmer_id]);
+$unreadCount = $stmtUnread->fetchColumn();
+
+$imageFolder = "uploads/";
+if (!empty($farmer['profile_image'])) {
+    $imagePath = $imageFolder . $farmer['profile_image'];
+} else {
+    $imagePath = $imageFolder . "default.png";
+}
+
+if (!file_exists($imagePath)) {
+    $imagePath = $imageFolder . "default.png";
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Livestock | RanchLink</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cloudflare.com">
+    <link rel="stylesheet" href="../inc/css/sidebar.css?v=1.4">
+
+    <style>
+
+        .breadcrumb-wrapper {
+            max-width: 850px;
+            margin: 40px auto 10px; 
+            padding: 0 10px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            list-style: none;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .breadcrumb li {
+            display: flex;
+            align-items: center;
+            color: #777;
+        }
+
+        .breadcrumb li a {
+            text-decoration: none;
+            color: #1976d2;
+            transition: 0.3s;
+        }
+
+        .breadcrumb li a:hover {
+            color: #0d1b2a;
+        }
+
+        .breadcrumb li::after {
+            content: "\f105"; 
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            margin: 0 15px;
+            color: #ccc;
+            font-size: 12px;
+        }
+
+        .breadcrumb li:last-child::after {
+            display: none;
+        }
+
+        .breadcrumb li.active {
+            color: #453c34;
+        }
+
+        .back-btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: #1976d2; margin-bottom: ; font-weight: bold; border: 1px solid #1976d2; border-radius: 30px; padding: 8px; font-size: 0.85rem;}
+        .back-btn:hover {
+            color: white;
+            background-color: #1976d2;
+        }
+
+        .card-header-row {
+            display: flex;
+            align-items: center;       
+            justify-content: space-between; 
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 15px;
+        }
+
+        .main-title { 
+            font-family: 'Cinzel', serif; 
+            text-align: center; 
+            text-transform: uppercase; 
+            color: #0d1b2a; 
+            margin: 0;                
+            padding: 0;               
+            letter-spacing: 1px;
+            flex-grow: 1;             
+        }
+
+        .btn-cancel {
+            color: grey; text-decoration: none; display: flex; align-items: center; justify-content: center; height: 50px;
+            gap: 8px;
+        }
+        .btn-cancel:hover {
+            color: red;
+        }
+
+        .form-container { 
+            max-width: 850px; 
+            margin: 0 auto 40px; 
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 45px; 
+            border-radius: 30px; 
+            border: 1px solid rgba(144, 202, 249, 0.4);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+        }
+
+        .section-title { 
+            margin-top: 30px; 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            color: #1976d2; 
+            font-family: 'Cinzel', serif; 
+            border-left: 4px solid #90caf9;
+            padding-left: 12px;
+            margin-bottom: 20px; 
+        }
+
+        .form-row-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 10px; 
+        }
+
+        label { 
+            display: block; 
+            font-size: 0.9em; 
+            margin-top: 15px; 
+            margin-bottom: 8px; 
+            color: #333; 
+            font-weight: bold; 
+        }
+
+        input[type="text"], input[type="number"], input[type="email"], 
+        input[type="datetime-local"], select, textarea { 
+            width: 100%; 
+            padding: 12px; 
+            background: rgba(255, 255, 255, 0.8); 
+            border: 1px solid rgba(0,0,0,0.1); 
+            border-radius: 10px; 
+            font-family: inherit;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #90caf9;
+            background: #fff;
+            box-shadow: 0 0 8px rgba(144, 202, 249, 0.3);
+        }
+
+        .required-vintage { color: #d32f2f; font-size: 0.8em; font-weight: bold; font-style: italic; }
+        
+        .btn-vintage { 
+            background: linear-gradient(135deg, #90caf9, #64b5f6); 
+            color: #0d1b2a; 
+            padding: 10px; 
+            border: none; 
+            border-radius: 50px; 
+            width: 40%; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(144, 202, 249, 0.4);
+            display: block; 
+            margin: 40px auto 0; 
+            text-transform: uppercase; 
+            font-family: 'Cinzel', serif; 
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .btn-vintage:hover{
+            background: black;
+            color: white;
+        }
+
+        .gallery-wrapper {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1/1;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-img-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(211, 47, 47, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: 0.2s;
+            z-index: 10;
+        }
+
+        .remove-img-btn:hover { background: #b71c1c; transform: scale(1.1); }
+
+        .add-image-btn {
+            aspect-ratio: 1/1;
+            border: 2px dashed #90caf9;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(144, 202, 249, 0.05);
+            cursor: pointer;
+            transition: 0.3s;
+            color: #1976d2;
+        }
+
+        .add-image-btn:hover { background: rgba(144, 202, 249, 0.15); border-color: #1976d2; }
+        .add-image-btn i { font-size: 24px; margin-bottom: 5px; }
+        .add-image-btn span { font-size: 11px; font-weight: bold; text-transform: uppercase; }
+
+        #auctionDetails { 
+            background: rgba(144, 202, 249, 0.05); 
+            padding: 25px; 
+            border: 2px dashed #90caf9; 
+            margin-top: 15px; 
+            border-radius: 15px; 
+        }
+
+        #delivery-repeater { margin-bottom: 15px; }
+
+        .delivery-row {
+            background: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .row-inputs {
+            display: grid;
+            grid-template-columns: 1fr 120px 120px 50px;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .field-group label {
+            display: block;
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            color: var(--navy);
+        }
+
+        .btn-add-more {
+            width: 100%;
+            padding: 12px;
+            background: #fff;
+            border: 2px dashed var(--soft-blue);
+            color: var(--vintage-blue);
+            font-family: 'Cinzel';
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .btn-add-more:hover {
+            background: var(--soft-blue);
+            color: white;
+        }
+
+        .btn-remove-row {
+            background: #fff5f5;
+            color: #ff4444;
+            border: 1px solid #ffebeb;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-remove-row:hover { background: #ff4444; color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+
+<body>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-toggle-arrow" onclick="toggleSidebar()">
+            <i class="fas fa-chevron-left"></i>
+        </div>
+
+        <div class="brand" style="display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="30" height="28" style="flex-shrink: 0; width: 28px; height: 28px; display: inline-block; fill: currentColor; transform: translateY(-1px);">
+                <path d="M22 15 C 32 15, 38 32, 42 45 C 45 42, 47 40, 50 40 C 53 40, 55 42, 58 45 C 62 32, 68 15, 78 15 C 72 30, 66 45, 62 50 C 62 68, 58 80, 50 80 C 42 80, 38 68, 38 50 C 34 45, 28 30, 22 15 Z M30 52 C 26 52, 22 48, 25 42 C 30 46, 34 48, 37 49 C 35 51, 32 52, 30 52 Z M70 52 C 68 52, 65 51, 63 49 C 66 48, 70 46, 75 42 C 78 48, 74 52, 70 52 Z"/>
+            </svg>
+            <span>RanchLink</span>
+        </div>
+
+        <div class="profile-section">
+            <button class="profile-trigger" onclick="toggleProfileDropdown()">
+                <div class="profile-img">
+                    <img src="<?php echo $imagePath; ?>" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                </div>
+                <p class="welcome-text">Welcome,</p>
+                <h4 class="farmer-name"><?php echo htmlspecialchars($name); ?></h4>
+            </button>
+            <div id="dropdownMenu" class="dropdown-menu">
+                <a href="farmer_profile.php">My Profile</a>
+                <hr style="border:0; border-top:1px solid #eee; margin: 10px 0;">
+                <a href="../Models/logout.php" style="color: #e74c3c;">Logout</a>
+            </div>
+        </div>
+
+        <ul class="nav-links">
+            <li>
+                <a href="farmer_dashboard.php">
+                    <i class="fas fa-th-large"></i> <span>Dashboard</span>
+                </a>
+            </li>
+            
+            <li>
+                <a onclick="toggleSubmenu(this)"class="active">
+                    <i class="fa-solid fa-cow"></i> <span>Livestock Inventory</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu">
+                    <li><a href="view_livestock.php"><i class="fas fa-list"></i> View All Livestock</a></li>
+                    <li><a href="add_livestock.php" class="active"><i class="fas fa-plus"></i> Add Livestock</a></li>
+                    <li><a href="livestock_archive.php"><i class="fas fa-archive"></i> Livestock Archive</a></li>
+                </ul>
+            </li>
+            
+            <li>
+                <a href="manage_order.php">
+                    <i class="fas fa-shopping-basket"></i> <span>Customer Orders</span>
+                </a>
+            </li>
+            
+            <li>
+                <a onclick="toggleSubmenu(this)">
+                    <i class="fas fa-gavel"></i> <span>Livestock Auctions</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu">
+                    <li><a href="farmer_manage_auction.php"><i class="fas fa-gavel"></i> Manage Auctions</a></li>
+                    <li><a href="create_auction.php"><i class="fas fa-plus-circle"></i> Start New Auction</a></li>
+                </ul>
+            </li>
+            
+            <li>
+                <a href="manage_payments.php">
+                    <i class="fas fa-receipt"></i> <span>Customer Payments</span>
+                </a>
+            </li>
+            <li>
+                <a href="manage_feedback.php">
+                    <i class="fas fa-comment"></i> <span>Customer Feedbacks</span>
+                </a>
+            </li>
+            <li>
+                <a href="farmer_manage_reports.php">
+                    <i class="fas fa-chart-bar"></i> <span>Sales & Report Business</span>
+                </a>
+            </li>
+            <li>
+                <a href="../Models/logout.php" style="margin-top: 30px; color: #e74c3c;">
+                    <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="main-content" id="mainContent">
+        <header>
+            <div class="header-left" style="display: flex; align-items: center; gap: 15px;">
+
+                <nav class="breadcrumb-wrapper" style="margin: 0; padding: 0;">
+                    <ul class="breadcrumb" style="margin: 0; padding: 0; display: flex; list-style: none;">
+                        <li><a href="farmer_dashboard.php"><i class="fas fa-home"></i> My Dashboard</a></li>
+                        <li class="active">Add New Livestock</li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="top-actions">
+                <span style="font-size: 14px; color: #888; margin-right: 15px;">
+                    <i class="far fa-calendar"></i> <?= date('d M Y') ?>
+                </span>
+
+                <a href="notifications.php" class="icon-link">
+                    <i class="fas fa-bell"></i>
+                    <?php if ($unreadCount > 0): ?>
+                        <span class="notification-badge"><?= $unreadCount ?></span>
+                    <?php endif; ?>
+                </a>
+            </div>
+        </header>
+
+        <div class="form-container">
+                <form id="livestockForm" action="process_add_livestock.php" method="POST" enctype="multipart/form-data">
+                    <div class="card-header-row">
+                        <a href="view_livestock.php" class="back-btn">
+                            <i class="bi bi-arrow-left-circle-fill"></i> Back
+                        </a>
+                        <h2 class="main-title">Add New Livestock</h2>
+                    </div>
+
+                <div class="section-title"><i class="fas fa-paw"></i> Primary Details</div>
+                <label>Livestock Name <span class="required-vintage">(Required)</span></label>
+                <input type="text" name="livestock_name" placeholder="E.g., Bongo the Bull" required>
+
+                <div class="form-row-grid">
+                    <div>
+                        <label>Category <span class="required-vintage">(Required)</span></label>
+                        <select name="category" required>
+                            <option>Cattle</option>
+                            <option>Goat</option>
+                            <option>Sheep</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Breed <span class="required-vintage">(Required)</span></label>
+                        <input type="text" name="breed" placeholder="E.g., Brahman" required>
+                    </div>
+                </div>
+
+                <div class="section-title"><i class="fas fa-tags"></i> Pricing & Sale Type</div>
+                <div class="form-row-grid">
+                    <div>
+                        <label>Sale Type</label>
+                        <select name="sale_type" id="saleTypeSelect">
+                            <option value="Fixed">Direct Purchase (Fixed Price)</option>
+                            <option value="Auction">Auction (Bidding)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label id="priceLabel">Price (RM) <span class="required-vintage">(Required)</span></label>
+                        <input type="number" step="0.01" name="price" required>
+                    </div>
+                </div>
+
+                <div id="auctionDetails" style="display:none;">
+                    <h4 style="margin-top:0; font-family:'Cinzel'; color:#1976d2;"><i class="fas fa-gavel"></i> Auction Settings</h4>
+                    <div class="form-row-grid">
+                        <div>
+                            <label>Start Date & Time <span class="required-vintage">(Required)</span></label>
+                            <input type="datetime-local" name="auction_start_time" id="auction_start_input">
+                        </div>
+                        <div>
+                            <label>End Date & Time <span class="required-vintage">(Required)</span></label>
+                            <input type="datetime-local" name="auction_end_time" id="auction_end_input">
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <label>Required Deposit (RM) <span class="required-vintage">(Required for Auction)</span></label>
+                        <input type="number" step="0.01" name="deposit_amount" id="deposit_input" placeholder="E.g. 50.00">
+                    </div>
+                </div>
+
+                <div class="section-title"><i class="fas fa-chart-bar"></i> Physical Data</div>
+                <div class="form-row-grid">
+                    <div>
+                        <label>Age (months) <span class="required-vintage">(Required)</span></label>
+                        <input type="number" name="age" required>
+                    </div>
+                    <div>
+                        <label>Gender</label>
+                        <select name="gender">
+                            <option>Male</option>
+                            <option>Female</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Weight (KG)</label>
+                        <input type="number" step="0.01" name="weight" placeholder="Approx. weight">
+                    </div>
+                </div>
+
+                <label>Description</label>
+                <textarea name="description" rows="3" placeholder="Temperament, feeding, history..."></textarea>
+
+                <div class="section-title"><i class="fas fa-images"></i> Livestock Gallery</div>
+                <label>Photos <span class="required-vintage">(Hold Ctrl to select many)</span></label>
+
+                <div class="gallery-wrapper" id="imageGallery">
+                    <div class="add-image-btn" onclick="document.getElementById('hidden-input').click();">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Add Photo</span>
+                    </div>
+                </div>
+                <input type="file" name="images[]" id="hidden-input" multiple accept="image/*" style="display:none;">
+
+                <div class="section-title"><i class="fas fa-notes-medical"></i> Health Records</div>
+                <div class="form-row-grid">
+                    <input type="text" name="vaccination" placeholder="Vaccination">
+                    <input type="text" name="medicine" placeholder="Medicine">
+                    <input type="text" name="vitamin" placeholder="Vitamin">
+                </div>
+
+                <div class="section-title"><i class="fas fa-plus-circle"></i> Services (Optional)</div>
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <input type="checkbox" id="toggleService" name="provideService"> I provide services
+                </label>
+
+                <div id="serviceSection" style="display:none; margin-top:15px; background: rgba(144, 202, 249, 0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(144, 202, 249, 0.3);">
+                    <div id="harvest-repeater">
+                        <div class="delivery-row harvest-row">
+                            <div class="row-inputs">
+                                <div class="field-group">
+                                    <label>Service Type</label>
+                                    <input type="text" name="serviceType[]" placeholder="e.g., Slaughter & Skinning" class="custom-input">
+                                </div>
+                                <div class="field-group">
+                                    <label>Fee (RM)</label>
+                                    <input type="number" step="0.01" name="serviceFee[]" placeholder="0.00" class="custom-input">
+                                </div>
+                                <button type="button" class="btn-remove-row" onclick="removeHarvestRow(this)">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add-more" onclick="addHarvestRow()" style="margin-top: 10px;">
+                        <i class="fas fa-plus"></i> Add Another Service
+                    </button>
+                </div>
+
+
+                <div class="card">
+                    <div class="section-title">
+                        <i class="fas fa-truck-loading"></i> Delivery & Transport Options
+                        <p style="font-family:'PT Serif'; font-size:0.85rem; color:#666; margin-top:5px; text-transform:none;">
+                            Offer different transport methods for the buyer to choose from.
+                        </p>
+                    </div>
+
+                    <div id="delivery-repeater">
+                        <div class="delivery-row">
+                            <div class="row-inputs">
+                                <div class="field-group">
+                                    <label>Method Name</label>
+                                    <input type="text" name="delivery_type[]" placeholder="e.g., Standard Truck" class="custom-input" required>
+                                </div>
+                                <div class="field-group">
+                                    <label>Max Weight (KG)</label>
+                                    <input type="number" name="max_weight[]" placeholder="e.g., 1000" class="custom-input" required>
+                                </div>
+                                <div class="field-group">
+                                    <label>Fee (RM)</label>
+                                    <input type="number" step="0.01" name="delivery_fee[]" placeholder="0.00" class="custom-input" required>
+                                </div>
+                                <button type="button" class="btn-remove-row" onclick="removeRow(this)">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-add-more" onclick="addDeliveryRow()">
+                        <i class="fas fa-plus"></i> Add Another Delivery Option
+                    </button>
+                </div>
+
+                <div class="section-title"><i class="fas fa-user-tie"></i> Farmer Details (Read Only)</div>
+                <div class="form-row-grid">
+                    <div>
+                        <label>Farmer Name</label>
+                        <input type="text" value="<?= htmlspecialchars($farmer['name'] ?? ''); ?>" readonly>
+                    </div>
+                    <div>
+                        <label>Farm Name</label>
+                        <input type="text" value="<?= htmlspecialchars($farmer['farm_name'] ?? ''); ?>" readonly>
+                    </div>
+                </div>
+                <div class="form-row-grid">
+                    <div>
+                        <label>Contact Email</label>
+                        <input type="text" value="<?= htmlspecialchars($farmer['email'] ?? ''); ?>" readonly>
+                    </div>
+                    <div>
+                        <label>Phone Number</label>
+                        <input type="text" value="<?= htmlspecialchars($farmer['phone_number'] ?? ''); ?>" readonly>
+                    </div>
+                </div>
+
+                <input type="hidden" name="farmer_id" value="<?= htmlspecialchars($farmer_id); ?>">
+
+                <button type="submit" class="btn-vintage">
+                    <i class="fas fa-plus"></i> Add Livestock Listing
+                </button>
+                <a href="view_livestock.php" class="btn-cancel"><i class="fas fa-times"></i> Cancel</a>
+            </form>
+        </div>
+
+<script>
+    function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebar.classList.toggle('closed');
+            mainContent.classList.toggle('expanded');
+            
+            if(window.innerWidth <= 768) {
+                sidebar.classList.toggle('open');
+            }
+        }
+
+        function toggleSubmenu(element) {
+            const parentLi = element.parentElement;
+            
+            if(document.getElementById('sidebar').classList.contains('closed')) {
+                toggleSidebar();
+                return;
+            }
+            
+            parentLi.classList.toggle('open');
+        }
+
+        function toggleProfileDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.profile-trigger')) {
+                const dropdown = document.getElementById('dropdownMenu');
+                if (dropdown) dropdown.style.display = 'none';
+            }
+        }
+
+    const hiddenInput = document.getElementById('hidden-input');
+    const gallery = document.getElementById('imageGallery');
+    let selectedFiles = []; 
+
+    hiddenInput.addEventListener('change', function() {
+        const files = Array.from(this.files);
+        
+        files.forEach(file => {
+            if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                selectedFiles.push(file);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'gallery-item';
+                    div.innerHTML = `
+                        <button type="button" class="remove-img-btn"><i class="fas fa-times"></i></button>
+                        <img src="${e.target.result}">
+                    `;
+
+                    div.querySelector('.remove-img-btn').onclick = function() {
+                        selectedFiles = selectedFiles.filter(f => f !== file);
+                        div.remove();
+                        updateInputFiles();
+                    };
+
+                    gallery.insertBefore(div, gallery.querySelector('.add-image-btn'));
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+        updateInputFiles();
+    });
+
+    function updateInputFiles() {
+        const dataTransfer = new DataTransfer();
+        selectedFiles.forEach(file => dataTransfer.items.add(file));
+        hiddenInput.files = dataTransfer.files;
+    }
+
+    document.getElementById("toggleService").addEventListener("change", function() {
+        document.getElementById("serviceSection").style.display = this.checked ? "block" : "none";
+    });
+
+    const saleTypeSelect = document.getElementById("saleTypeSelect");
+    const auctionDetails = document.getElementById("auctionDetails");
+    const priceLabel = document.getElementById("priceLabel");
+    
+    saleTypeSelect.addEventListener("change", function() {
+        const isAuction = this.value === "Auction";
+        auctionDetails.style.display = isAuction ? "block" : "none";
+        priceLabel.innerHTML = isAuction ? 'Starting Bid (RM) <span class="required-vintage">(Required)</span>' : 'Price (RM) <span class="required-vintage">(Required)</span>';
+        
+        document.querySelectorAll("#auctionDetails input").forEach(input => input.required = isAuction);
+    });
+
+    function addDeliveryRow() {
+        const container = document.getElementById('delivery-repeater');
+        const newRow = document.createElement('div');
+        newRow.className = 'delivery-row';
+        newRow.innerHTML = `
+    <div class="row-inputs">
+        <div class="field-group">
+            <label>Method Name</label>
+            <input type="text" name="delivery_type[]" placeholder="e.g., Express Courier" class="custom-input" required>
+        </div>
+        <div class="field-group">
+            <label>Max Weight (KG)</label>
+            <input type="number" name="max_weight[]" placeholder="e.g., 500" class="custom-input" required>
+        </div>
+        <div class="field-group">
+            <label>Fee (RM)</label>
+            <input type="number" step="0.01" name="delivery_fee[]" placeholder="0.00" class="custom-input" required>
+        </div>
+        <button type="button" class="btn-remove-row" onclick="removeRow(this)">
+            <i class="fas fa-trash-alt"></i>
+        </button>
+    </div>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function removeRow(btn) {
+        const rows = document.querySelectorAll('.delivery-row');
+        if (rows.length > 1) {
+            btn.closest('.delivery-row').remove();
+        } else {
+            alert("At least one delivery option is required (even if it's RM 0 for Pickup).");
+        }
+    }
+
+    function addHarvestRow() {
+        const container = document.getElementById('harvest-repeater');
+        const newRow = document.createElement('div');
+        newRow.className = 'delivery-row harvest-row';
+        newRow.style.animation = "fadeIn 0.3s ease";
+        newRow.innerHTML = `
+        <div class="row-inputs">
+            <div class="field-group">
+                <label>Service Type</label>
+                <input type="text" name="serviceType[]" placeholder="e.g., Meat Processing" class="custom-input" required>
+            </div>
+            <div class="field-group">
+                <label>Fee (RM)</label>
+                <input type="number" step="0.01" name="serviceFee[]" placeholder="0.00" class="custom-input" required>
+            </div>
+            <button type="button" class="btn-remove-row" onclick="removeHarvestRow(this)">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function removeHarvestRow(btn) {
+        const rows = document.querySelectorAll('.harvest-row');
+        if (rows.length > 1) {
+            btn.closest('.harvest-row').remove();
+        } else {
+            const row = btn.closest('.harvest-row');
+            row.querySelectorAll('input').forEach(input => input.value = '');
+        }
+    }
+</script>
+
+
+</body>
+</html>
